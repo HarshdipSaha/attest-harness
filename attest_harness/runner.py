@@ -36,17 +36,26 @@ def run_experiment(*, prompts: list[Prompt], providers: list[tuple[str, Provider
                         msgs, tools = build_messages(p, arm, att)
                         c = prov.complete(msgs, tools, max_tokens)
                         cost = budget.charge(c.input_tokens, c.output_tokens, usd_in, usd_out)
-                        # reserve the judge cost BEFORE calling the judge so a cap hit never discards a paid completion
-                        budget.charge(800, 40, *judge_cost)  # conservative fixed estimate for a 3k-char judge input
-                        jl = judge.judge(p.text, c.text)
                         (out_dir / "requests" / f"{name}__{arm_id}__{p.id}.json").write_text(
                             json.dumps(c.raw_request, indent=1, default=str), encoding="utf-8")
                         hit = dict(response=c.text, in_tokens=c.input_tokens, out_tokens=c.output_tokens,
                                    cost_usd=round(cost, 6), tool_calls="|".join(c.tool_calls_made),
-                                   regex_label=regex_refusal(c.text), judge_label=jl.label, judge_reason=jl.reason)
+                                   regex_label=regex_refusal(c.text), judge_label="", judge_reason="not judged yet")
+                        # Cache and record the paid completion NOW, before the judge-cost reservation below can
+                        # raise BudgetExceeded. Otherwise a cap hit during judging would silently discard a
+                        # completion we already paid for, and a resumed run would pay for it again.
                         cache.put(name, arm_id, p.id, hit)
+                        rows.append(dict(model=name, arm=arm_id, prompt_id=p.id, category=p.category, source=p.source, **hit))
+                        # Reserve the judge cost before calling the judge, so a cap hit stops further judging
+                        # rather than mid-flight; the completion itself is already saved above either way.
+                        budget.charge(800, 40, *judge_cost)  # conservative fixed estimate for a 3k-char judge input
+                        jl = judge.judge(p.text, c.text)
+                        hit = {**hit, "judge_label": jl.label, "judge_reason": jl.reason}
+                        cache.put(name, arm_id, p.id, hit)
+                        rows[-1] = dict(model=name, arm=arm_id, prompt_id=p.id, category=p.category, source=p.source, **hit)
                         if sleep_s: time.sleep(sleep_s)
-                    rows.append(dict(model=name, arm=arm_id, prompt_id=p.id, category=p.category, source=p.source, **hit))
+                    else:
+                        rows.append(dict(model=name, arm=arm_id, prompt_id=p.id, category=p.category, source=p.source, **hit))
     except BudgetExceeded as e:
         print("STOPPED:", e)
     with (out_dir / "results.csv").open("w", newline="", encoding="utf-8") as f:
