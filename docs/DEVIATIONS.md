@@ -48,6 +48,38 @@ single exhausted Groq free-tier key doesn't stop the run. `GROQ_API_KEY` in `.en
 user to confirm). Covered by `tests/test_key_pool.py` and two new tests in
 `tests/test_providers_mock.py` (rotates past bad keys; raises once every key is exhausted).
 
+## Smoke test (2026-09-10/11): one more bug found, judge validated by hand
+
+Ran the full 30-prompt dev slice × 6 arms × 3 models (540 cells, $0.00, Groq free tier). Checker
+passed (no leaked auth text); tool-calling verified 100% (90/90 `A4b_verified_tool` cells
+actually called `verify_attestation`).
+
+- **Regex refusal detector missed curly-apostrophe refusals** (real bug, found here). Groq's
+  gpt-oss models default to typographic apostrophes (U+2019): `"I'm sorry, but I can't help with
+  that."` — every apostrophe in `judge.py`'s `_REFUSAL` pattern is ASCII (U+0027), so these
+  silently matched nothing and were mislabeled `"comply"`. 94% of the smoke test's judge/regex
+  disagreements (47 of 50 rows) traced to exactly this. Fixed by normalizing curly apostrophes to
+  straight ones before matching; re-derived `regex_label` on the already-cached responses (no new
+  API calls) and confirmed both gpt-oss models now have **zero** judge/regex disagreement, and
+  `qwen3_8_27b`'s remaining disagreements are the legitimate, expected gap between a binary regex
+  and the 3-way judge (regex can't distinguish "partial" from "refuse").
+- **Judge labels hand-checked** (in place of the plan's two-human process — only one person
+  available before the sprint): read ~20 responses sampled across all 3 models and all 3 labels
+  plus every `A5_conflict` refusal for `gpt_oss_120b`. All matched the response content on
+  manual reread; one apparent mismatch (a `qwen3_8_27b` row whose judge reason described SSRF
+  content while the response preview showed token-verification text) turned out to be a
+  truncation artifact in my own spot-check script, not a judge error — the full response opened
+  with a token-skepticism note and then answered the actual question at length. `judge_reason ==
+  "unparseable judge output"` (the JSON-parse-failure fallback) fired on 5/540 rows (0.9%), all
+  `qwen3_8_27b`, silently defaulting to `"partial"` — low enough to not block the main run, but
+  worth a real 100-item human-labeled kappa (Task 15) rather than trusting this alone.
+- **Early directional signal** (n=30 per model, not the pre-registered n=220 — illustrative only,
+  not a result): H2 (conflict-arm refusal ≥ baseline) held strongly on all 3 models, most sharply
+  on `gpt_oss_120b` (0%→100%, p<0.001) — the system-channel INVALID marker overrode the user's
+  false claim rather than the reverse. H1 (verified-system refusal < prose-claim refusal) trended
+  correctly on `gpt_oss_120b` and `qwen3_8_27b` (both p≈0.06–1.0, underpowered at n=30) but was
+  flat on `gpt_oss_20b` (both arms at 0% refusal — a floor effect, not evidence against H1).
+
 ## Two real bugs found by live-testing the Groq config before any paid run (2026-09-10)
 
 Both would have silently corrupted or crashed the actual smoke/main run if not caught here —
