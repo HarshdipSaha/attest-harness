@@ -1,6 +1,6 @@
 # STATUS — AI Incident Response Sprint (Sept 11–13, 2026)
 
-Last updated: 2026-09-10 (implementation started). Spec: `docs/SPEC.md`. Brief: `docs/ABOUT-HACKATHON.md`.
+Last updated: 2026-09-10 (Tasks 0-11 of the implementation plan built test-first and committed; 31/31 tests green). Spec: `docs/SPEC.md`. Brief: `docs/ABOUT-HACKATHON.md`.
 
 ## 2026-09-10 live-site recheck (Playwright)
 
@@ -22,10 +22,10 @@ Last updated: 2026-09-10 (implementation started). Spec: `docs/SPEC.md`. Brief: 
 | Idea selection | DONE | LLM council (5 advisors, 5 peer reviews, chairman). Verdict in `docs/council/verdict.md`. Idea A reshaped as channel-position experiment; B rejected; C reduced to a one-page appendix |
 | Spec | DONE | `docs/SPEC.md`, rewritten in `to-spec` format (problem, solution, 21 user stories, implementation/testing decisions, out of scope). No issue tracker configured, so the file is the tracked spec |
 | Implementation plan | DONE | `docs/superpowers/plans/2026-09-05-attest-harness.md` (16 tasks, TDD, code included; two review rounds, all flagged issues fixed: YAML parse, check_dir test, token spec, plot yerr clamp, pyproject packages, 100-label export; final check APPROVED: reviewer assembled all 33 code blocks and ran the 31-test suite green) |
-| Pre-registration | TODO | Write `docs/PREREG.md`, commit before main run |
-| Prompt set | TODO | ~250 prompts + 30 dev slice; NCCDC set is NOT public, so build from HF post-mortem, CyberSecEval FRR, public NCCDC/CoSAI materials, Gray Swan CRF |
-| Verifier (`ir-attest`) | TODO | Ed25519, fixed keypair, unit tests |
-| Harness (`attest-harness`) | TODO | 3 provider adapters, 6 arms, judge, stats, plot, API cap |
+| Pre-registration | DONE | `docs/PREREG.md` committed (`591fa14`) |
+| Prompt set | TODO (Task 12, out of scope for this pass) | `prompts/main.csv`, `prompts/dev_slice.csv`, `prompts/SOURCES.md`, `scripts/build_prompts.py` already exist on disk from earlier work but are uncommitted and unverified against `load_prompts()` — pick up in Task 12 |
+| Verifier (`ir-attest`) | DONE | Ed25519, fixed keypair, CLI, unit tests — 8 tests green |
+| Harness (`attest-harness`) | DONE | Tasks 0-11 implemented test-first and committed (`1e93c36`..`8d40352`, 13 commits). 3 provider adapters, 6 arms, judge, budget cap, resumable cache, request-leak checker, Wilson CI + exact McNemar stats, five-bar figure. Full suite: **31 passed** (`pytest -q` from repo root, `.venv` with `pip install -e .[dev]`). Tasks 12-16 (prompt content, smoke test, main run, human labeling, report) not started — need real API keys and are out of scope for this implementation pass. |
 | Smoke test | TODO | 30-prompt dev slice, one model, all arms; dump raw request bodies |
 | Main run | TODO | Fri night / Sat |
 | Human labels | TODO | 100 items, kappa vs judge |
