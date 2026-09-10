@@ -1,0 +1,24 @@
+models:
+  - name: claude
+    provider: anthropic
+    model: claude-sonnet-4-5          # confirm exact id at run time; keep cheap tier
+    usd_per_1k_in: 0.003
+    usd_per_1k_out: 0.015
+  - name: gpt
+    provider: openai
+    model: gpt-4.1-mini
+    usd_per_1k_in: 0.0004
+    usd_per_1k_out: 0.0016
+  - name: third
+    provider: openai_compat
+    model: ${THIRD_MODEL}
+    base_url: ${THIRD_BASE_URL}
+    api_key_env: THIRD_API_KEY
+    usd_per_1k_in: 0.0006
+    usd_per_1k_out: 0.0022
+    temperature: 0.0                  # set to null for models that reject the parameter
+judge:
+  provider: openai
+  model: ${JUDGE_MODEL}
+  usd_per_1k_in: 0.00015
+  usd_per_1k_out: 0.0006
