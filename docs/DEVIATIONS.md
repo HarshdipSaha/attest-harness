@@ -23,6 +23,57 @@ versus left alone.
   interrupted judge call is rare in practice because the reservation is a small fixed cost
   charged right after a real model call that's already within budget). All 31 tests still pass.
 
+## Model lineup change (2026-09-10, before any paid run)
+
+SPEC.md's "Provider-neutral messages" decision named two closed models (Anthropic, OpenAI) plus
+a third open-weight model via an OpenAI-compatible endpoint. The user chose to run all three
+models on Groq instead (they provided 5 Groq API keys, no Anthropic/OpenAI keys), for zero
+marginal cost on Groq's free tier. Selected live against `https://api.groq.com/openai/v1/models`
+on 2026-09-10: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b` (see
+`configs/models.yaml` header comment for what was excluded and why — ASR/TTS/classifier/
+agentic-wrapper models). This changes the paper's framing: it is no longer "how do closed
+frontier models plus one open fallback compare" but "how do three open-weight models compare" —
+weaker as a direct callback to the HF/Cursor incidents (which involved Claude and GPT-backed
+Cursor specifically) but still squarely an instance of the same channel-position question, and
+arguably closer to what a defender *actually* falls back to (HF's own fallback was GLM, an
+open-weight model). State this framing shift explicitly in the report's Related Work /
+Methodology, don't let it read as if closed models were tested.
+
+**Key rotation added** (`attest_harness/providers/key_pool.py`, `KeyPool`, wired into
+`OpenAIProvider` via a new `api_keys` param and `_keys_from_env()` in `runner.py`): a
+comma-separated env var becomes a rotation pool; `OpenAIProvider._create()` retries a failed
+request under the next key on `openai.RateLimitError` (HTTP 429), up to once per key, so a
+single exhausted Groq free-tier key doesn't stop the run. `GROQ_API_KEY` in `.env` holds 5 keys
+(the user said 4; 5 were actually found — using all of them is strictly safer, flagged for the
+user to confirm). Covered by `tests/test_key_pool.py` and two new tests in
+`tests/test_providers_mock.py` (rotates past bad keys; raises once every key is exhausted).
+
+## Two real bugs found by live-testing the Groq config before any paid run (2026-09-10)
+
+Both would have silently corrupted or crashed the actual smoke/main run if not caught here —
+neither is a hypothetical, both were reproduced against the live Groq API before being fixed.
+
+- **The judge was completely broken.** `openai/gpt-oss-*` models spend completion tokens on a
+  hidden chain-of-thought reasoning phase that shares the same `max_tokens` budget as the visible
+  `message.content`. At the judge's fixed `max_tokens=120` (`judge.py`), gpt-oss-20b's default
+  reasoning effort consumed 113–120 of those tokens, leaving `content=""` every time — every
+  `judge_label` in the dataset would have silently defaulted to `"partial"` regardless of the
+  actual response (`judge.py`'s `except Exception: return JudgeLabel("partial", ...)` catches the
+  resulting JSON-parse failure). Fixed by adding a `reasoning_effort` parameter to
+  `OpenAIProvider` (passed through to the API call only when set, so models that don't support it
+  are unaffected) and setting `reasoning_effort: low` on the judge and both gpt-oss model entries
+  in `configs/models.yaml`. Verified live afterward: correct `{"label": ..., "reason": ...}` JSON
+  well within budget. `qwen/qwen3.8-27b` has no separate reasoning channel exposed via this
+  parameter and was left unset for it.
+- **The `verify_attestation` tool call failed outright on Groq.** `tools.py`'s schema declared an
+  optional `session: string` parameter the handler never reads. Some models (`gpt-oss-120b`
+  reproduced live) called the tool as `{"session": null}` — valid per the schema's own `required:
+  []`, but Groq's server-side JSON-schema validation rejects `null` for a property typed
+  `"string"` regardless of whether it's required, returning `400 tool_use_failed` and aborting
+  the whole completion. Fixed by declaring the tool with an empty `properties: {}` schema (it
+  never took real arguments to begin with). Verified live afterward: all three models call the
+  tool successfully and produce substantive `A4b_verified_tool` responses.
+
 ## Known gaps, deliberately not fixed (time/scope tradeoff before the sprint)
 
 - **No hard prompt-token cap.** SPEC.md's Implementation Decisions say "prompt cap around 400

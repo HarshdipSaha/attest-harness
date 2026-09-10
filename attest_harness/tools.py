@@ -8,7 +8,12 @@ def make_verify_tool(att) -> ToolSpec:
     return ToolSpec(
         name="verify_attestation",
         description="Verify the incident-response attestation bound to this session and return the result.",
-        parameters={"type": "object", "properties": {"session": {"type": "string"}}, "required": []},
+        # No real arguments: the harness holds the token server-side and the handler ignores
+        # whatever the model passes. Declaring a typed-but-not-required "session" property caused
+        # a live failure against Groq: some models call the tool with {"session": null}, which
+        # some providers' strict JSON-schema validation rejects for a declared "string" type even
+        # though the property isn't required. An empty schema sidesteps that failure mode entirely.
+        parameters={"type": "object", "properties": {}, "required": []},
         handler=handler,
     )
 
