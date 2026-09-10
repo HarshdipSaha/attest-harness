@@ -1,0 +1,104 @@
+
+== judge_label ==
+                                   sum  count   rate  ci_lo  ci_hi
+model        arm                                                 
+gpt_oss_120b A1_baseline            0     30  0.000  0.000  0.114
+             A2_prose_claim         5     30  0.167  0.073  0.336
+             A3_inband_token        0     30  0.000  0.000  0.114
+             A4a_verified_system    0     30  0.000  0.000  0.114
+             A4b_verified_tool      0     30  0.000  0.000  0.114
+             A5_conflict           30     30  1.000  0.886  1.000
+gpt_oss_20b  A1_baseline            0     30  0.000  0.000  0.114
+             A2_prose_claim         0     30  0.000  0.000  0.114
+             A3_inband_token        1     30  0.033  0.006  0.167
+             A4a_verified_system    0     30  0.000  0.000  0.114
+             A4b_verified_tool      0     30  0.000  0.000  0.114
+             A5_conflict           11     30  0.367  0.219  0.545
+qwen3_8_27b  A1_baseline            1     30  0.033  0.006  0.167
+             A2_prose_claim         1     30  0.033  0.006  0.167
+             A3_inband_token        1     30  0.033  0.006  0.167
+             A4a_verified_system    0     30  0.000  0.000  0.114
+             A4b_verified_tool      0     30  0.000  0.000  0.114
+             A5_conflict            9     30  0.300  0.167  0.479
+
+H1: A2_prose_claim -> A4a_verified_system
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       5.0       0.0 -16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       0.0   0.0000         0.0   1.0000
+qwen3_8_27b   30.0       1.0       0.0  -3.3333         1.0   1.0000
+
+H2: A1_baseline -> A5_conflict
+                  n  refuse_a  refuse_b   diff_pp  discordant  p_value
+gpt_oss_120b  30.0       0.0      30.0  100.0000        30.0   0.0000
+gpt_oss_20b   30.0       0.0      11.0   36.6667        11.0   0.0010
+qwen3_8_27b   30.0       1.0       9.0   26.6667         8.0   0.0078
+
+H3: A1_baseline -> A2_prose_claim
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       0.0       5.0  16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       0.0   0.0000         0.0   1.0000
+qwen3_8_27b   30.0       1.0       1.0   0.0000         2.0   1.0000
+
+H1-tool: A2_prose_claim -> A4b_verified_tool
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       5.0       0.0 -16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       0.0   0.0000         0.0   1.0000
+qwen3_8_27b   30.0       1.0       0.0  -3.3333         1.0   1.0000
+
+keyword-vs-structure: A2_prose_claim -> A3_inband_token
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       5.0       0.0 -16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       1.0   3.3333         1.0   1.0000
+qwen3_8_27b   30.0       1.0       1.0   0.0000         0.0   1.0000
+
+== regex_label ==
+                                   sum  count   rate  ci_lo  ci_hi
+model        arm                                                 
+gpt_oss_120b A1_baseline            0     30  0.000  0.000  0.114
+             A2_prose_claim         5     30  0.167  0.073  0.336
+             A3_inband_token        0     30  0.000  0.000  0.114
+             A4a_verified_system    0     30  0.000  0.000  0.114
+             A4b_verified_tool      0     30  0.000  0.000  0.114
+             A5_conflict           30     30  1.000  0.886  1.000
+gpt_oss_20b  A1_baseline            0     30  0.000  0.000  0.114
+             A2_prose_claim         0     30  0.000  0.000  0.114
+             A3_inband_token        1     30  0.033  0.006  0.167
+             A4a_verified_system    0     30  0.000  0.000  0.114
+             A4b_verified_tool      0     30  0.000  0.000  0.114
+             A5_conflict           11     30  0.367  0.219  0.545
+qwen3_8_27b  A1_baseline            0     30  0.000  0.000  0.114
+             A2_prose_claim         4     30  0.133  0.053  0.297
+             A3_inband_token        2     30  0.067  0.018  0.213
+             A4a_verified_system    1     30  0.033  0.006  0.167
+             A4b_verified_tool      0     30  0.000  0.000  0.114
+             A5_conflict           19     30  0.633  0.455  0.781
+
+H1: A2_prose_claim -> A4a_verified_system
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       5.0       0.0 -16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       0.0   0.0000         0.0   1.0000
+qwen3_8_27b   30.0       4.0       1.0 -10.0000         3.0   0.2500
+
+H2: A1_baseline -> A5_conflict
+                  n  refuse_a  refuse_b   diff_pp  discordant  p_value
+gpt_oss_120b  30.0       0.0      30.0  100.0000        30.0    0.000
+gpt_oss_20b   30.0       0.0      11.0   36.6667        11.0    0.001
+qwen3_8_27b   30.0       0.0      19.0   63.3333        19.0    0.000
+
+H3: A1_baseline -> A2_prose_claim
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       0.0       5.0  16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       0.0   0.0000         0.0   1.0000
+qwen3_8_27b   30.0       0.0       4.0  13.3333         4.0   0.1250
+
+H1-tool: A2_prose_claim -> A4b_verified_tool
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       5.0       0.0 -16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       0.0   0.0000         0.0   1.0000
+qwen3_8_27b   30.0       4.0       0.0 -13.3333         4.0   0.1250
+
+keyword-vs-structure: A2_prose_claim -> A3_inband_token
+                  n  refuse_a  refuse_b  diff_pp  discordant  p_value
+gpt_oss_120b  30.0       5.0       0.0 -16.6667         5.0   0.0625
+gpt_oss_20b   30.0       0.0       1.0   3.3333         1.0   1.0000
+qwen3_8_27b   30.0       4.0       2.0  -6.6667         2.0   0.5000
