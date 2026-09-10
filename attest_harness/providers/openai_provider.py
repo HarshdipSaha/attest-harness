@@ -1,8 +1,30 @@
 from __future__ import annotations
-import json
+import json, re, time
 from openai import OpenAI, RateLimitError
 from .base import Message, ToolSpec, Completion
 from .key_pool import KeyPool
+
+_RETRY_AFTER_RE = re.compile(r"try again in\s+(?:(\d+)m)?([\d.]+)s", re.I)
+
+def _seconds_until_retry(exc: RateLimitError, default: float = 30.0) -> float:
+    """Best-effort wait time: the Retry-After header if present, else Groq's
+    'Please try again in 3m8.784s' message text, else a default guess."""
+    try:
+        header = exc.response.headers.get("retry-after")
+        if header:
+            return float(header)
+    except Exception:
+        pass
+    msg = ""
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        msg = str(body.get("message", ""))
+    if not msg:
+        msg = str(exc)
+    m = _RETRY_AFTER_RE.search(msg)
+    if m:
+        return (float(m.group(1)) if m.group(1) else 0.0) * 60 + float(m.group(2))
+    return default
 
 class OpenAIProvider:
     """Works for OpenAI and any OpenAI-compatible endpoint (set base_url).
@@ -11,10 +33,18 @@ class OpenAIProvider:
     HTTP 429 rate-limit errors -- built for Groq's free tier, where a run at this volume
     can plausibly outrun a single key's per-minute quota. Only the failed request is
     retried under the next key; the tool-call loop's accumulated message state is kept.
+
+    Key rotation alone doesn't help every 429, though: verified live during the main run
+    that Groq enforces some limits (e.g. tokens-per-day) per *organization*, not per key --
+    if all keys belong to the same account, rotating through them just re-hits the same
+    wall immediately. So after a full round of keys is exhausted, `_create` sleeps for
+    Groq's own suggested wait (parsed from the error) and retries the whole cycle again,
+    up to `max_wait_rounds` times, before finally raising.
     """
     def __init__(self, model: str, api_key: str | None = None, api_keys: list[str] | None = None,
                  base_url: str | None = None, client=None, name: str | None = None,
-                 temperature: float | None = 0.0, client_factory=None, reasoning_effort: str | None = None):
+                 temperature: float | None = 0.0, client_factory=None, reasoning_effort: str | None = None,
+                 max_wait_rounds: int = 10, max_wait_seconds: float = 300.0):
         self.model = model
         self.name = name or model
         self.temperature = temperature  # None => omit (reasoning models reject the parameter)
@@ -25,6 +55,8 @@ class OpenAIProvider:
         # message.content empty. Set reasoning_effort="low" for such models to leave real headroom
         # for the visible answer. Omit (None) for models that don't support/need the parameter.
         self.reasoning_effort = reasoning_effort
+        self.max_wait_rounds = max_wait_rounds
+        self.max_wait_seconds = max_wait_seconds
         self._client_factory = client_factory or (lambda key: OpenAI(api_key=key, base_url=base_url))
         if client is not None:
             self.client = client
@@ -45,12 +77,18 @@ class OpenAIProvider:
 
     def _create(self, **kw):
         attempts = len(self._pool) if self._pool else 1
-        for attempt in range(attempts):
-            try:
-                return self.client.chat.completions.create(**kw)
-            except RateLimitError:
-                if attempt == attempts - 1 or not self._rotate_client():
-                    raise
+        last_exc: RateLimitError | None = None
+        for round_ in range(self.max_wait_rounds):
+            for attempt in range(attempts):
+                try:
+                    return self.client.chat.completions.create(**kw)
+                except RateLimitError as e:
+                    last_exc = e
+                    if attempt < attempts - 1:
+                        self._rotate_client()
+            if round_ < self.max_wait_rounds - 1:
+                time.sleep(min(_seconds_until_retry(last_exc), self.max_wait_seconds) + 1)
+        raise last_exc
 
     def complete(self, messages: list[Message], tools: list[ToolSpec] | None, max_tokens: int) -> Completion:
         msgs = [{"role": m.role, "content": m.content} for m in messages]
