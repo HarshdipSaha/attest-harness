@@ -11,3 +11,4 @@ results/*
 keys/dev_private.pem
 .venv/
 .playwright-mcp/
+*.egg-info/
