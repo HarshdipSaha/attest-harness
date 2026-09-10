@@ -1,24 +1,56 @@
+GROQ_URL: &groq_url https://api.groq.com/openai/v1
+GROQ_KEY: &groq_key GROQ_API_KEY   # comma-separated in .env; rotated on HTTP 429 by OpenAIProvider
+
+# All three models are Groq-hosted (verified live against https://api.groq.com/openai/v1/models
+# on 2026-09-10). Chosen for tool-calling support and general instruction-following (excluded:
+# whisper-* (ASR), canopylabs/orpheus-* (TTS), meta-llama/llama-prompt-guard-2-* (classifier,
+# not a chat model), groq/compound* (Groq's own agentic wrapper -- it can invoke tools/web search
+# on its own, which would contaminate the six-arm design's tool-channel control), allam-2-7b
+# (Arabic-focused, not needed for English defensive-IR prompts)):
+#   - openai/gpt-oss-120b : largest available, closest analog to a frontier-adjacent model
+#   - openai/gpt-oss-20b  : same family, smaller -- tests whether scale changes channel sensitivity
+#   - qwen/qwen3.8-27b    : different lab/architecture entirely, for real cross-family diversity
+# Groq free tier => usd_per_1k_* = 0.0, so the harness's dollar cap is a no-op for this run; the
+# real constraint is Groq's per-key rate limit, handled by rotating across GROQ_API_KEY's keys.
+# If billing is ever on a paid Groq tier instead, replace the zeros with real per-token pricing.
 models:
-  - name: claude
-    provider: anthropic
-    model: claude-sonnet-4-5          # confirm exact id at run time; keep cheap tier
-    usd_per_1k_in: 0.003
-    usd_per_1k_out: 0.015
-  - name: gpt
-    provider: openai
-    model: gpt-4.1-mini
-    usd_per_1k_in: 0.0004
-    usd_per_1k_out: 0.0016
-  - name: third
-    provider: openai_compat
-    model: ${THIRD_MODEL}
-    base_url: ${THIRD_BASE_URL}
-    api_key_env: THIRD_API_KEY
-    usd_per_1k_in: 0.0006
-    usd_per_1k_out: 0.0022
-    temperature: 0.0                  # set to null for models that reject the parameter
+  - name: gpt_oss_120b
+    provider: groq
+    model: openai/gpt-oss-120b
+    base_url: *groq_url
+    api_key_env: *groq_key
+    usd_per_1k_in: 0.0
+    usd_per_1k_out: 0.0
+    temperature: 0.0
+    reasoning_effort: low   # see openai_provider.py: reasoning tokens share max_tokens with content
+  - name: gpt_oss_20b
+    provider: groq
+    model: openai/gpt-oss-20b
+    base_url: *groq_url
+    api_key_env: *groq_key
+    usd_per_1k_in: 0.0
+    usd_per_1k_out: 0.0
+    temperature: 0.0
+    reasoning_effort: low
+  - name: qwen3_8_27b
+    provider: groq
+    model: qwen/qwen3.8-27b
+    base_url: *groq_url
+    api_key_env: *groq_key
+    usd_per_1k_in: 0.0
+    usd_per_1k_out: 0.0
+    temperature: 0.0
 judge:
-  provider: openai
-  model: ${JUDGE_MODEL}
-  usd_per_1k_in: 0.00015
-  usd_per_1k_out: 0.0006
+  # Judge runs on the smallest/cheapest model in the pool, sharing the same key rotation.
+  # reasoning_effort: low is NOT optional here -- at the judge's 120-token max_tokens budget,
+  # gpt-oss-20b's default reasoning effort alone consumes ~all 120 tokens, leaving message.content
+  # empty and defaulting every single judge_label to "partial" regardless of the real response.
+  # Verified live 2026-09-10: without this line, content="" and finish_reason="length"; with it,
+  # the model returns valid {"label": ..., "reason": ...} JSON well within budget.
+  provider: groq
+  model: openai/gpt-oss-20b
+  base_url: *groq_url
+  api_key_env: *groq_key
+  usd_per_1k_in: 0.0
+  usd_per_1k_out: 0.0
+  reasoning_effort: low

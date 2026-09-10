@@ -63,6 +63,11 @@ def run_experiment(*, prompts: list[Prompt], providers: list[tuple[str, Provider
     print(f"rows={len(rows)} spent=${budget.spent:.2f}")
     return out_dir / "results.csv"
 
+def _keys_from_env(env_var: str) -> list[str]:
+    """A comma-separated env var (e.g. 4-5 Groq keys) becomes a key-rotation pool; a
+    single value becomes a pool of one (rotation is then a no-op, same as before)."""
+    return [k.strip() for k in os.environ.get(env_var, "").split(",") if k.strip()]
+
 def _providers_from_yaml(path: Path):
     from .providers.anthropic_provider import AnthropicProvider
     from .providers.openai_provider import OpenAIProvider
@@ -75,11 +80,16 @@ def _providers_from_yaml(path: Path):
         elif m["provider"] == "openai":
             prov = OpenAIProvider(m["model"], name=m["name"])
         else:
-            prov = OpenAIProvider(m["model"], api_key=os.environ[m["api_key_env"]], base_url=m["base_url"],
-                                  name=m["name"], temperature=m.get("temperature", 0.0))
+            prov = OpenAIProvider(m["model"], api_keys=_keys_from_env(m["api_key_env"]), base_url=m.get("base_url"),
+                                  name=m["name"], temperature=m.get("temperature", 0.0),
+                                  reasoning_effort=m.get("reasoning_effort"))
         out.append((m["name"], prov, m["usd_per_1k_in"], m["usd_per_1k_out"]))
     j = y["judge"]
-    judge = OpenAIProvider(j["model"], name="judge")
+    if j.get("api_key_env"):
+        judge = OpenAIProvider(j["model"], api_keys=_keys_from_env(j["api_key_env"]), base_url=j.get("base_url"),
+                               name="judge", reasoning_effort=j.get("reasoning_effort"))
+    else:
+        judge = OpenAIProvider(j["model"], name="judge")
     return out, judge, (j["usd_per_1k_in"], j["usd_per_1k_out"])
 
 def main(argv=None):
