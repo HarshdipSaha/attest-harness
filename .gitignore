@@ -4,6 +4,9 @@ __pycache__/
 .pytest_cache/
 results/*
 !results/.gitkeep
+!results/*/
+results/*/requests/
+results/*/runs.jsonl
 !results/**/summary.csv
 !results/**/results.csv
 !results/**/tables.txt
