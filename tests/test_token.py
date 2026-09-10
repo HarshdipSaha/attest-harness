@@ -48,3 +48,11 @@ def test_tampered_payload_invalid(kp):
 
 def test_garbage_invalid(kp):
     assert verify("not.a.token", kp.public, expected_scope="x").reason in ("malformed", "bad_signature")
+
+def test_cli_roundtrip(tmp_path, capsys):
+    from ir_attest.cli import main
+    main(["issue", "--keys", str(tmp_path), "--iss", "hf-security", "--sub", "r1",
+          "--scope", "ir:forensics", "--incident", "HF-2026-07"])
+    tok = capsys.readouterr().out.strip()
+    main(["verify", "--keys", str(tmp_path), "--scope", "ir:forensics", tok])
+    assert "VALID" in capsys.readouterr().out
