@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+results/*
+!results/.gitkeep
+!results/**/summary.csv
+!results/**/results.csv
+!results/**/tables.txt
+!results/**/*.png
+keys/dev_private.pem
+.venv/
+.playwright-mcp/
