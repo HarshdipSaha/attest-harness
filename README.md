@@ -98,6 +98,8 @@ The harness enforces a hard dollar cap before every paid call, caches every comp
 
 **Ed25519** via `cryptography` · **OpenAI + Anthropic SDK adapters** (any OpenAI-compatible endpoint works) · **pandas / scipy / statsmodels** for Wilson intervals and exact McNemar tests · **matplotlib** for the figure. Built for the Apart Research × CeSIA **AI Incident Response Sprint**, Open Track.
 
+Demo: [Video](https://www.loom.com/share/057eaf5a006b489e9ceb5421d8b56cff)
+
 Deeper reading: [the spec](docs/SPEC.md) · [pre-registration](docs/PREREG.md) · [token spec](ir_attest/TOKEN_SPEC.md) · [status & decision log](docs/STATUS.md) · [deviations](docs/DEVIATIONS.md)
 
 <div align="center">
